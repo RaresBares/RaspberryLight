@@ -1,145 +1,66 @@
-#include <wiringPi.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
+#include <chrono>
 #include <thread>
-#include <iostream>
 
+#define MPU6050_ADDRESS (0x68)
+#define MPU6050_REG_PWR_MGMT_1 (0x6b)
+#define MPU6050_REG_DATA_START (0x3b)
+#define A_SCALE (16384.0)
+#define ANG_SCALE (131.0)
 
-
-// P0-P7 is 0-7 works through pins 29
-// see pin connections
-
-int hz = 120;
-struct leucht{
-
-
-
-
-
-
-    void operator()() const {
-
-
-
-
-
-
-        while (true) {
-            std::cout << "jetzt: " << hz << "\n";
-            digitalWrite(4, 1);
-            digitalWrite(5, 0);
-            digitalWrite(6, 0);
-            digitalWrite(13, 0);
-            delay(hz);
-            std::this_thread::sleep_for(     std::chrono::nanoseconds(hz));
-            digitalWrite(4, 1);
-            digitalWrite(5, 1);
-            digitalWrite(6, 0);
-            digitalWrite(13, 0);
-            delay(hz);
-            std::this_thread::sleep_for(     std::chrono::nanoseconds(hz));
-            digitalWrite(4, 1);
-            digitalWrite(5, 1);
-            digitalWrite(6, 1);
-            digitalWrite(13, 0);
-            delay(hz);
-            std::this_thread::sleep_for(     std::chrono::nanoseconds(hz));
-            digitalWrite(4, 1);
-            digitalWrite(5, 1);
-            digitalWrite(6, 1);
-            digitalWrite(13, 1);
-            delay(hz);
-            std::this_thread::sleep_for(     std::chrono::nanoseconds(hz));
-            digitalWrite(4, 0);
-            digitalWrite(5, 1);
-            digitalWrite(6, 1);
-            digitalWrite(13, 1);
-            delay(hz);
-            std::this_thread::sleep_for(     std::chrono::nanoseconds(hz));
-            digitalWrite(4, 0);
-            digitalWrite(5, 0);
-            digitalWrite(6, 1);
-            digitalWrite(13, 1);
-            delay(hz);
-            std::this_thread::sleep_for(     std::chrono::nanoseconds(hz));
-            digitalWrite(4, 0);
-            digitalWrite(5, 0);
-            digitalWrite(6, 0);
-            digitalWrite(13, 1);
-
-            delay(hz);
-            std::this_thread::sleep_for(     std::chrono::nanoseconds(hz));
-            digitalWrite(4, 0);
-            digitalWrite(5, 0);
-            digitalWrite(6, 0);
-            digitalWrite(13, 0);
-            delay(hz);
-
-            
-            std::this_thread::sleep_for(     std::chrono::nanoseconds(hz));
-        }
+void checkRC(int rc, char *text) {
+    if (rc < 0) {
+        printf("Error: %s - %d\n");
+        exit(-1);
     }
-};
+}
 
+int main(int argc, char *argv[]) {
+    printf("MPU6050 starting\n");
+    // Setup Wiring Pi
+    wiringPiSetup();
 
+    // Open an I2C connection
+    int fd = wiringPiI2CSetup(MPU6050_ADDRESS);
+    checkRC(fd, "wiringPiI2CSetup");
 
+    // Perform I2C work
+    wiringPiI2CWriteReg8(fd, MPU6050_REG_PWR_MGMT_1, 0);
 
-int main() {
-    if (wiringPiSetup() == -1 || wiringPiSetupGpio() == -1)
-        exit(1);
-    pinMode(4, OUTPUT);
-    pinMode(5, OUTPUT);
-    pinMode(6, OUTPUT);
-    pinMode(13, OUTPUT);
-    pinMode(21, INPUT);
-    pinMode(20, INPUT);
-    leucht leucht{};
-    std::cout << "jetzt: " << hz << "\n";
-    std::thread thread{leucht};
+    while(1) {
+        uint8_t msb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START);
+        uint8_t lsb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+1);
+        short accelX = msb << 8 | lsb;
 
-    std::cout << "jetzt: " << hz << "\n";
+        msb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+2);
+        lsb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+3);
+        short accelY = msb << 8 | lsb;
 
+        msb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+4);
+        lsb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+5);
+        short accelZ = msb << 8 | lsb;
 
+        msb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+6);
+        lsb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+7);
+        short temp = msb << 8 | lsb;
 
+        msb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+8);
+        lsb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+9);
+        short gyroX = msb << 8 | lsb;
 
+        msb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+10);
+        lsb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+11);
+        short gyroY = msb << 8 | lsb;
 
+        msb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+12);
+        lsb = wiringPiI2CReadReg8(fd, MPU6050_REG_DATA_START+13);
+        short gyroZ = msb << 8 | lsb;
 
-
-
-    while (true) {
-
-        int& a = hz;
-
-        int i = digitalRead(21);
-        int o = digitalRead(20);
-        bool t = true;
-
-        std::this_thread::sleep_for(std::chrono::nanoseconds (20));
-
-        if (i == 1) {
-            std::cout << "+10" << "\n";
-
-
-                a +=50;
-
-            t = false;
-            std::this_thread::sleep_for(std::chrono::seconds (1));
-
-        }
-        if (o == 1 && t) {
-            std::cout << "-10"<< "\n";
-
-                a -=50;
-
-            std::this_thread::sleep_for(std::chrono::seconds (1));
-
-        }
-        std::cout << "jetzt: " << hz << "\n";
-
+        printf("accelX=%f, accelY=%f, accelZ=%f, gyroX=%f, gyroY=%f, gyroZ=%f\n", accelX/A_SCALE, accelY/A_SCALE, accelZ/A_SCALE, gyroX/ANG_SCALE, gyroY/ANG_SCALE, gyroZ/ANG_SCALE);
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
-
-
-
-
-    return 0 ;
 }
